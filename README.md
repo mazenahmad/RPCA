@@ -8,6 +8,7 @@ Ahmad, M.; Helms, V.; Kalinina, O. V.; Lengauer, T. [Relative Principle Componen
 **GROMACS-4.6.5**: The tools use few functions from Gromacs-4.6.5 and have to be linked to its library. See the [installation guide of Gromacs-4.6](http://www.gromacs.org/Documentation/Installation_Instructions_4.6).
 
 **LAPACK and BLAS** 
+
 Please make sure to modify the Makefile to include the path to the header files of Gromacs and the header file of cblas.
 The tools g_RPCA  g_GPA g_sdiag g_rpcana will be compiled using the command
 ```
