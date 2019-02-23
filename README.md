@@ -17,8 +17,9 @@ make all
 
 
 ### License
-This code is distributed without a particular license. You can freely use it for your scientific research. 
-      
+This code is distributed without a particular license. This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ 
 ### Acknowledgments
 * The source code of Gromacs was used as a base for a part of the source code.
 * The nonlinear minimizer was written and modified after the [source code](https://github.com/SurajGupta/r-source/blob/master/src/appl/uncmin.c) of nlm () function from R, which in-turn is a C translation of the FORTRAN code of the nonlinear minimization algorithm by [Dennis and Schnabel](https://www.amazon.com/Numerical-Unconstrained-Optimization-Nonlinear-Mathematics/dp/0898713641)
