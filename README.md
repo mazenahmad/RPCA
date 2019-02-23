@@ -17,8 +17,7 @@ make all
 
 
 ### License
-This code is distributed without a particular license. This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+This code is distributed without a particular license in the hope that it will be useful. You can freely use it for your scientific research BUT WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  
 ### Acknowledgments
 * The source code of Gromacs was used as a base for a part of the source code.
