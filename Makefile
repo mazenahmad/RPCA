@@ -1,4 +1,4 @@
-#path to gromacs/include/gromacs
+#modify for the correct path to gromacs headers and library
 INCLUDE      = /TL/hivpr/work/software/gromacs-4.6.5/include/gromacs/
 # path to gromacs library 
 GMXLIB       = /TL/hivpr/work/software/gromacs-4.6.5/lib
