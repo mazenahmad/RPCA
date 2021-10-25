@@ -3,7 +3,7 @@
 ////////////////////////////////////////////////////////
 #include <float.h>
 #include <math.h>
-#include <atlas/cblas.h>
+#include <cblas.h>
 #include "linear_algebra.h"
 #include "fitting.h"
 #include "arrays.h"

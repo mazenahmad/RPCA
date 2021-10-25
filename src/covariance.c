@@ -1,4 +1,4 @@
-#include <atlas/cblas.h>
+#include <cblas.h>
 #include <math.h>
 #include "covariance.h" 
 #include "arrays.h"
@@ -391,10 +391,9 @@ int write_Geigen(const char *outfile,Geigdecomposition_t *eig , int verbose)
 void write_array2xvg(const char *eigvalfile, int ndim, double *eigval, char *title ,char *xaxis, char *yaxis  )	
 {		
 	//fprintf(stderr,"\nWriting eigenvalues to %s\n",eigvalfile);
-
 	FILE   *out;
 	out=fopen(eigvalfile,"w");
-    fprintf(out,"# by the following command:\n# %s\n#\n",command_line());
+    //fprintf(out,"# by the following command:\n# %s\n#\n",command_line());
 	fprintf(out,"@    title \"%s\"\n", title);
 	fprintf(out,"@    xaxis  label \"%s\"\n",xaxis );
 	fprintf(out,"@    yaxis  label \"%s\"\n",yaxis);
@@ -402,6 +401,7 @@ void write_array2xvg(const char *eigvalfile, int ndim, double *eigval, char *tit
    	int i;
 	for (i=0; (i<ndim); i++)  fprintf (out,"%10d %g\n",i+1,eigval[i]);
 	fclose(out); 
+
 }
 //////////////////////////////////////////////////////////////////////
 
@@ -611,7 +611,7 @@ void write_Geigen2xvg(const char *Geigfile, Geigdecomposition_t *eig )
 {		
 	FILE   *out;
 	out=fopen(Geigfile,"w");
-    fprintf(out,"# by the following command:\n# %s\n#\n",command_line());
+    //fprintf(out,"# by the following command:\n# %s\n#\n",command_line());
 	fprintf(out,"@    title \"Generalized Eigen-Analysis\"\n");
 	fprintf(out,"@    xaxis  label \"Generalized Eigen Component\"\n" );
 	fprintf(out,"@    yaxis  label \"Divergence(kt)\"\n");
@@ -624,7 +624,7 @@ void write_Geigen2xvg(const char *Geigfile, Geigdecomposition_t *eig )
 	fprintf(out,"@ legend length 2\n");
 	fprintf(out,"@ s0 legend \"Total\"\n");
 	fprintf(out,"@ s1 legend \"Due to mean change\"\n");
-	fprintf(out,"@ s2 legend \"Accumulated (%)\"\n");
+	fprintf(out,"@ s2 legend \"Accumulated (percent.)\"\n");
 	fprintf(out,"@ s3 legend \"Generalized eigenvalues (nm)\"\n");
    	int i;
 	for (i=0; i< eig->rank; i++)  fprintf (out,"%10d	%12.3f	%12.3f	%12.3f	%e \n",
@@ -1151,5 +1151,3 @@ void show_increased_decresed_motions(	const char *pdbfile ,    // write the proj
 }
 /////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////
-
-

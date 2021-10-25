@@ -3,6 +3,7 @@
 #include <math.h>
 #include <time.h>
 #include "statutil.h"
+#include "tpxio.h"
 #include "pbc.h"
 #include "index.h"
 #include "rmpbc.h"
@@ -120,7 +121,7 @@ int main(int argc, char *argv[])
 		//////////////////////  MAIN LOOP Of  GPA   /////////////////////////////
 		/////////////////////////////////////////////////////////////////////////
 		printf("\n\n*******************************************************************\n");
-		printf(    "***********          Performing GPA fitting        ****************\n", trxfile);
+		printf(    "***********          Performing GPA fitting        ****************\n");
 		printf(  "\n*******************************************************************\n");
 		printf(    "* The conformations are read from the file %s *\n", trxfile);
 		gpa(trxfile, &xav,  nfit,ifit, bPBC,gpbc, TC, convergence, verbose, timeBeg, timeEnd);

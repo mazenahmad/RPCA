@@ -3,6 +3,7 @@
 #include <string.h>
 #include <time.h>
 #include "typedefs.h"
+#include "tpxio.h"
 #include "vec.h"
 #include "index.h"
 #include "rmpbc.h"
