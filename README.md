@@ -5,7 +5,7 @@ This is the source code of the computational tools to perform RPCA of the confor
 Ahmad, M.; Helms, V.; Kalinina, O. V.; Lengauer, T. [Relative Principle Components Analysis: Application to Analyzing Biomolecular Conformational Changes.](https://doi.org/10.1021/acs.jctc.8b01074)  J. Chem. Theory Comput. 2019 , doi:10.1021/acs.jctc.8b01074.
 ### Installing 
 #### Prerequisites:
-**GROMACS-4.6.5**: The tools use few functions from Gromacs-4.6.5 and have to be linked to its library. See the [installation guide of Gromacs-4.6](http://www.gromacs.org/Documentation/Installation_Instructions_4.6).
+**GROMACS-4.6.5**: The tools use few functions from Gromacs-4.6.5 and have to be linked to its library. See the [installation guide of Gromacs-4.6](https://www.gromacs.org/Documentation_of_outdated_versions/Installation_Instructions_4.6).
 To install GROMACS-4.6.5 in the folder /usr/local:
 ```
 cd /usr/local && mkdir gromacs && wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-4.6.5.tar.gz \
@@ -17,6 +17,10 @@ cd /usr/local && mkdir gromacs && wget ftp://ftp.gromacs.org/pub/gromacs/gromacs
 **LAPACK and BLAS** 
 
 Please make sure to modify the Makefile to include the path to the header files of Gromacs and the header file of cblas.
+A simple way to install BLAS and LAPACK libraries on Ubuntu:
+```
+sudo apt-get update -y && sudo apt-get install libatlas-base-dev 
+```
 The tools g_RPCA  g_GPA g_sdiag g_rpcana will be compiled using the command
 ```
 make all
