@@ -6,6 +6,13 @@ Ahmad, M.; Helms, V.; Kalinina, O. V.; Lengauer, T. [Relative Principle Componen
 ### Installing 
 #### Prerequisites:
 **GROMACS-4.6.5**: The tools use few functions from Gromacs-4.6.5 and have to be linked to its library. See the [installation guide of Gromacs-4.6](http://www.gromacs.org/Documentation/Installation_Instructions_4.6).
+To install GROMACS-4.6.5 in the folder /usr/local:
+```
+cd /usr/local && mkdir gromacs && wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-4.6.5.tar.gz \
+    && tar xfz gromacs-4.6.5.tar.gz && rm gromacs-4.6.5.tar.gz  && cd gromacs-4.6.5 && mkdir build  && cd build \
+    && cmake .. -DGMX_BUILD_OWN_FFTW=ON -DCMAKE_INSTALL_PREFIX=/usr/local/gromacs \
+    && make && make install
+```
 
 **LAPACK and BLAS** 
 
