@@ -79,7 +79,7 @@ typedef struct
   //extern int read_next_xtc( XDRFILE *xd, int natoms,int *step,float *time, float box[3][3],rvec *x);
   int Read_next_xtc( xtc_t *f, float end);
   /* Write a frame to xtc file */
-  extern int Write_xtc(XDRFILE *xd,int natoms,int step,float time, float box[3][3],rvec *x);
+  extern int write_xtc(XDRFILE *xd,int natoms,int step,float time, float box[3][3],rvec *x);
   //////
   void reset_frame( xtc_t *f);
   
