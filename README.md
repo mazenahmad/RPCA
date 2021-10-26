@@ -16,7 +16,7 @@ cd /usr/local && mkdir gromacs && wget ftp://ftp.gromacs.org/pub/gromacs/gromacs
 
 **LAPACK and BLAS** 
 
-Please make sure to modify the Makefile to include the path to the header files of Gromacs and the header file of cblas.
+Please make sure to modify the Makefile to include the path to the header files of Gromacs and the header file of cblas. Insure having BLAS and and LAPACK libraris.
 A simple way to install BLAS and LAPACK libraries on Ubuntu:
 ```
 sudo apt-get update -y && sudo apt-get install libatlas-base-dev 
