@@ -12,7 +12,7 @@ This is the source code of the computational tools to perform RPCA of the confor
 
 ## RPCA analysis provides to following possibilities to check the impact of the conformations changes
 ### Conformational hotspots analysis
-<img src="figs/conf_hotspots.png" width="600" height="600">
+<img src="figs/conf_hotspots.png" width="500" height="500">
 Conformational hotspots analysis recognizes the importance of the resistance-related mutation (I50V) of HIV-1 protease when bound to Saquinavir. The conformational hotspots of the mutant (a) are located at the flap region around the mutation V50. The corresponding flap residues of the wild-type (I50) in figure (b) do not show energetically important (expensive) conformational changes. The radius and the color of the cartoon indicate the importance of the conformational changes. The importance is normalized relative to the highest value. The structures of the ligands are taken from the experimental structure of the complexes (PDB codes 3OXC and 3CYX for the wild-type and the I50V mutant respectively). 
 
 ### Representation of the enhanced and restricted conformational fluctuations
@@ -21,7 +21,7 @@ Representation of the enhanced and restricted conformational fluctuations of HIV
 
 ### RPCA component analysis of the conformational changes
 
-<img src="figs/rpca_comp.png" width="800" height="300">
+<img src="figs/rpca_comp.png" width="600" height="300">
 RPCA of HIV-1 protease upon its association with Tipranavir. Shown are the non-optimal RPCA (a) and the optimal RPCA with sub-spacing (b). The right panels show the KL divergences of the components (blue colored) and their corresponding contributions due to the change of the average (red colored). Left panels show projections of the data points (conformations) of both the initial (free, unbound) and the final bound state on selected components. The scores (KL divergences) of the components are displayed after their corresponding number. The projections show that the components (components 1-8) with the highest rank (KL divergence) distinguish the change between the free and bound states while the components with the lowest rank do not distinguish the change (similar projections). The analysis is performed using the heavy atoms of the protein.
 
 ## The provided tools perform RPCA analysis of two molecular states using the following steps: 
