@@ -1,8 +1,8 @@
 # Relative Principle Components Analysis (RPCA)
-<img src="figs/toc.png" width="800" height="500">
+<img src="figs/toc.png" width="1000" height="600">
 This is the source code of the computational tools to perform RPCA of the conformational changes upon biomolecular interactions
 
-## references
+## References
 *  Ahmad, M., Helms, V., Kalinina, O. V. & Lengauer, T. Relative Principal Components Analysis: Application to Analyzing Biomolecular Conformational Changes. J. Chem. Theory Comput. 15, 2166–2178 (2019).
 * Ahmad, M., Helms, V., Kalinina, O. V. & Lengauer, T. Elucidating the energetic contributions to the binding free energy. J. Chem. Phys. 146, 014105 (2017).
 * Ahmad, M., Helms, V., Kalinina, O. V. & Lengauer, T. The Role of Conformational Changes in Molecular Recognition. J. Phys. Chem. B 120, 2138–2144 (2016).
@@ -22,7 +22,7 @@ Representation of the enhanced and restricted conformational fluctuations of HIV
 ### RPCA component analysis of the conformational changes
 
 <img src="figs/rpca_comp.png" width="600" height="300">
-RPCA of HIV-1 protease upon its association with Tipranavir. Shown are the non-optimal RPCA (a) and the optimal RPCA with sub-spacing (b). The right panels show the KL divergences of the components (blue colored) and their corresponding contributions due to the change of the average (red colored). Left panels show projections of the data points (conformations) of both the initial (free, unbound) and the final bound state on selected components. The scores (KL divergences) of the components are displayed after their corresponding number. The projections show that the components (components 1-8) with the highest rank (KL divergence) distinguish the change between the free and bound states while the components with the lowest rank do not distinguish the change (similar projections). The analysis is performed using the heavy atoms of the protein.
+RPCA of HIV-1 protease upon its association with Tipranavir. Shown are the optimal RPCA with sub-spacing. The right panels show the KL divergences of the components (blue colored) and their corresponding contributions due to the change of the average (red colored). Left panels show projections of the data points (conformations) of both the initial (free, unbound) and the final bound state on selected components. The scores (KL divergences) of the components are displayed after their corresponding number. The projections show that the components (components 1-8) with the highest rank (KL divergence) distinguish the change between the free and bound states while the components with the lowest rank do not distinguish the change (similar projections). The analysis is performed using the heavy atoms of the protein.
 
 ## The provided tools perform RPCA analysis of two molecular states using the following steps: 
 *	GPA fitting of the conformations sampled in the simulation of the first state. The covariance matrix of this state is also computed at this step. A successful superimposition of the ensemble will lead to a singular covariance matrix with at least six eigenvalues of zero value accounting for removing the external degrees of freedom. 
@@ -54,7 +54,6 @@ The tools g_RPCA  g_GPA g_sdiag g_rpcana will be compiled using the command
 ```
 make all
 ```
-
 
 ### License
 This code is distributed without a particular license in the hope that it will be useful. You can freely use it for your scientific research BUT WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
