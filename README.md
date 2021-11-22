@@ -1,8 +1,14 @@
 # Relative Principle Components Analysis (RPCA)
 <img src="figs/toc.png" width="800" height="500">
-This is the source code of the computational tools to perform RPCA of the conformational changes upon biomolecular interactions.
+This is the source code of the computational tools to perform RPCA of the conformational changes upon biomolecular interactions
 
-Ahmad, M.; Helms, V.; Kalinina, O. V.; Lengauer, T. [Relative Principle Components Analysis: Application to Analyzing Biomolecular Conformational Changes.](https://doi.org/10.1021/acs.jctc.8b01074)  J. Chem. Theory Comput. 2019 , doi:10.1021/acs.jctc.8b01074.
+## references
+*  Ahmad, M., Helms, V., Kalinina, O. V. & Lengauer, T. Relative Principal Components Analysis: Application to Analyzing Biomolecular Conformational Changes. J. Chem. Theory Comput. 15, 2166–2178 (2019).
+* Ahmad, M., Helms, V., Kalinina, O. V. & Lengauer, T. Elucidating the energetic contributions to the binding free energy. J. Chem. Phys. 146, 014105 (2017).
+* Ahmad, M., Helms, V., Kalinina, O. V. & Lengauer, T. The Role of Conformational Changes in Molecular Recognition. J. Phys. Chem. B 120, 2138–2144 (2016).
+* Ahmad, M., Helms, V., Lengauer, T. & Kalinina, O. V. How Molecular Conformational Changes Affect Changes in Free Energy. J. Chem. Theory Comput. 11, 2945–2957 (2015).
+* Ahmad, M., Helms, V., Lengauer, T. & Kalinina, O. V. Enthalpy–Entropy Compensation upon Molecular Conformational Changes. J. Chem. Theory Comput. 11, 1410–1418 (2015).
+
 
 ## RPCA analysis provides to following possibilities to check the impact of the conformations changes
 ### Conformational hotspots analysis
@@ -15,7 +21,7 @@ Representation of the enhanced and restricted conformational fluctuations of HIV
 
 ### RPCA component analysis of the conformational changes
 
-<img src="figs/rpca_comp.png" width="600" height="600">
+<img src="figs/rpca_comp.png" width="800" height="300">
 RPCA of HIV-1 protease upon its association with Tipranavir. Shown are the non-optimal RPCA (a) and the optimal RPCA with sub-spacing (b). The right panels show the KL divergences of the components (blue colored) and their corresponding contributions due to the change of the average (red colored). Left panels show projections of the data points (conformations) of both the initial (free, unbound) and the final bound state on selected components. The scores (KL divergences) of the components are displayed after their corresponding number. The projections show that the components (components 1-8) with the highest rank (KL divergence) distinguish the change between the free and bound states while the components with the lowest rank do not distinguish the change (similar projections). The analysis is performed using the heavy atoms of the protein.
 
 ## The provided tools perform RPCA analysis of two molecular states using the following steps: 
@@ -57,10 +63,6 @@ This code is distributed without a particular license in the hope that it will b
 * The source code of Gromacs was used as a base for a part of the source code.
 * The nonlinear minimizer was written and modified after the [source code](https://github.com/SurajGupta/r-source/blob/master/src/appl/uncmin.c) of nlm () function from R, which in-turn is a C translation of the FORTRAN code of the nonlinear minimization algorithm by [Dennis and Schnabel](https://www.amazon.com/Numerical-Unconstrained-Optimization-Nonlinear-Mathematics/dp/0898713641)
 
-## Related references 
-* Ahmad, M., Helms, V., Kalinina, O. V. & Lengauer, T. Elucidating the energetic contributions to the binding free energy. J. Chem. Phys. 146, 014105 (2017).
-* Ahmad, M., Helms, V., Kalinina, O. V. & Lengauer, T. The Role of Conformational Changes in Molecular Recognition. J. Phys. Chem. B 120, 2138–2144 (2016).
-* Ahmad, M., Helms, V., Lengauer, T. & Kalinina, O. V. How Molecular Conformational Changes Affect Changes in Free Energy. J. Chem. Theory Comput. 11, 2945–2957 (2015).
-* Ahmad, M., Helms, V., Lengauer, T. & Kalinina, O. V. Enthalpy–Entropy Compensation upon Molecular Conformational Changes. J. Chem. Theory Comput. 11, 1410–1418 (2015).
+
 
 
