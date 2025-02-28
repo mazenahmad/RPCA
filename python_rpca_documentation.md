@@ -1,0 +1,436 @@
+# RPCA-Python Documentation
+
+## Overview
+
+RPCA-Python is a high-performance Python implementation of Relative Principal Components Analysis for analyzing conformational changes in biomolecular systems. Originally developed as a C implementation by Ahmad et al., this Python version provides similar functionality with optimized performance for modern computing environments.
+
+## Table of Contents
+
+1. [Installation](#installation)
+2. [Quick Start](#quick-start)
+3. [Command Line Interface](#command-line-interface)
+4. [Python API](#python-api)
+5. [Performance Considerations](#performance-considerations)
+6. [Algorithm Details](#algorithm-details)
+7. [Output Files](#output-files)
+8. [Examples](#examples)
+9. [Troubleshooting](#troubleshooting)
+10. [References](#references)
+
+## Installation
+
+### Prerequisites
+
+- Python 3.7 or higher
+- NumPy
+- SciPy
+- MDAnalysis
+- Matplotlib
+- Numba
+
+### Install via pip
+
+```bash
+pip install rpca-python
+```
+
+### Install from source
+
+```bash
+git clone https://github.com/username/rpca-python.git
+cd rpca-python
+pip install -e .
+```
+
+## Quick Start
+
+```python
+from rpca import RPCAAnalysis
+import numpy as np
+
+# Create RPCA object
+rpca = RPCAAnalysis()
+
+# Read trajectories
+universe_a = rpca.read_trajectory("trajectory_a.xtc", "structure_a.pdb")
+universe_b = rpca.read_trajectory("trajectory_b.xtc", "structure_b.pdb")
+
+# Perform GPA to find average structures
+avg_coords_a = rpca.perform_gpa(universe_a, selection="protein and name CA")
+avg_coords_b = rpca.perform_gpa(universe_b, selection="protein and name CA")
+
+# Compute covariance matrices
+cov_a, mean_a = rpca.compute_covariance_matrix(universe_a, selection="protein and name CA", 
+                                             average_coords=avg_coords_a)
+cov_b, mean_b = rpca.compute_covariance_matrix(universe_b, selection="protein and name CA", 
+                                             average_coords=avg_coords_b)
+
+# Perform simultaneous diagonalization
+rpca_results = rpca.simultaneous_diagonalization(cov_a, cov_b, mean_a, mean_b)
+
+# Project trajectories
+proj_a = rpca.project_trajectory(universe_a, "protein and name CA", 
+                               rpca_results['gevec'], mean_b)
+proj_b = rpca.project_trajectory(universe_b, "protein and name CA",
+                               rpca_results['gevec'], mean_b)
+
+# Analyze results
+rpca.plot_kl_divergence(rpca_results['kl'], rpca_results['kl_m'], 
+                       rpca_results['acc_kl'], "kl_divergence.png")
+rpca.plot_projections(proj_a, proj_b, first_vec=0, filename="projections.png")
+```
+
+## Command Line Interface
+
+RPCA-Python can be run from the command line:
+
+```bash
+python -m rpca -fa trajectory_a.xtc -fb trajectory_b.xtc -sa structure_a.pdb -sb structure_b.pdb
+```
+
+### Required Arguments
+
+- `-fa`, `--traj_a`: Trajectory file for state A
+- `-fb`, `--traj_b`: Trajectory file for state B
+- `-sa`, `--top_a`: Topology file for state A
+- `-sb`, `--top_b`: Topology file for state B
+
+### Optional Arguments
+
+#### Selection Options
+- `-sel`, `--selection`: Atom selection string (default: "protein and name CA")
+
+#### Output Options
+- `-geig`, `--geig_out`: Output file for generalized eigenpairs (default: "geigen.npy")
+- `-dkl`, `--dkl_out`: Output file for KL divergence plot (default: "d_kl.png")
+- `-proj_a`, `--proj_a_out`: Output file for state A projections (default: "projection_a.npy")
+- `-proj_b`, `--proj_b_out`: Output file for state B projections (default: "projection_b.npy")
+- `-res`, `--res_out`: Output file for residue interaction map (default: None)
+- `-respdb`, `--respdb_out`: Output PDB with residue contributions as B-factors (default: "contributions.pdb")
+
+#### Analysis Options
+- `-bt`, `--begin_time`: Start time (ps) for analysis (default: 0)
+- `-et`, `--end_time`: End time (ps) for analysis, -1 means until the end (default: -1)
+- `-first`, `--first_vec`: First eigenvector for analysis, 0-based (default: 0)
+- `-last`, `--last_vec`: Last eigenvector for analysis, -1 means all (default: -1)
+- `-algo`, `--algorithm`: Algorithm for RPCA: 0=standard, 1=subspacing (default: 0)
+- `-verbose`, `--verbose`: Verbosity level 0-2 (default: 1)
+
+#### Performance Options
+- `-n_jobs`, `--n_jobs`: Number of parallel jobs (default: use all available cores)
+- `-batch`, `--batch_size`: Batch size for trajectory processing (default: 1000)
+- `-fp32`, `--use_float32`: Use single precision (float32) for faster computation but less accuracy
+- `-mem`, `--memory_efficient`: Use memory-efficient mode for large trajectories
+
+### Examples
+
+Basic usage:
+```bash
+python -m rpca -fa traj_a.xtc -fb traj_b.xtc -sa struct_a.pdb -sb struct_b.pdb
+```
+
+Advanced usage with performance options:
+```bash
+python -m rpca -fa traj_a.xtc -fb traj_b.xtc -sa struct_a.pdb -sb struct_b.pdb \
+  -sel "protein and name CA" \
+  -first 0 -last 10 \
+  -n_jobs 8 -batch 1000 -fp32
+```
+
+## Python API
+
+### RPCAAnalysis Class
+
+The main class for performing RPCA analysis.
+
+#### Methods
+
+##### `read_trajectory(trajectory_file, topology_file=None, start_time=0, end_time=-1)`
+Read molecular dynamics trajectory.
+
+Parameters:
+- `trajectory_file`: Path to trajectory file (xtc, dcd, etc.)
+- `topology_file`: Path to topology file (pdb, gro, etc.)
+- `start_time`: Start time (ps) for analysis
+- `end_time`: End time (ps) for analysis, -1 means until the end
+
+Returns:
+- MDAnalysis Universe object
+
+##### `perform_gpa(universe, selection='protein', max_iterations=10, convergence=0.00001, ref_frame=0, n_jobs=None)`
+Perform Generalized Procrustes Analysis to find average structure.
+
+Parameters:
+- `universe`: MDAnalysis Universe containing trajectory
+- `selection`: Atom selection string for atoms to include in analysis
+- `max_iterations`: Maximum number of GPA iterations
+- `convergence`: RMSD convergence criterion
+- `ref_frame`: Initial reference frame number
+- `n_jobs`: Number of parallel jobs to run (None uses all available cores)
+
+Returns:
+- Average coordinates after GPA
+
+##### `compute_covariance_matrix(universe, selection='protein', average_coords=None, n_jobs=None)`
+Compute covariance matrix from trajectory.
+
+Parameters:
+- `universe`: MDAnalysis Universe containing trajectory
+- `selection`: Atom selection string for atoms to include in analysis
+- `average_coords`: Pre-computed average coordinates (optional)
+- `n_jobs`: Number of parallel jobs for calculations
+
+Returns:
+- Covariance matrix and mean coordinates
+
+##### `simultaneous_diagonalization(cov_a, cov_b, mean_a, mean_b)`
+Perform simultaneous diagonalization of two covariance matrices.
+
+Parameters:
+- `cov_a`: Covariance matrix of state A
+- `cov_b`: Covariance matrix of state B
+- `mean_a`: Mean coordinates of state A
+- `mean_b`: Mean coordinates of state B
+
+Returns:
+- Dictionary containing:
+  - `geigval`: Generalized eigenvalues
+  - `gevec`: Generalized eigenvectors
+  - `kl`: Kullback-Leibler divergences
+  - `kl_m`: KL divergences due to mean shifts
+  - `rank`: Rank of the decomposition
+
+##### `project_trajectory(universe, selection, gevec, mean_coords, first_vec=0, last_vec=None, batch_size=1000, n_jobs=None)`
+Project trajectory onto generalized eigenvectors.
+
+Parameters:
+- `universe`: MDAnalysis Universe containing trajectory
+- `selection`: Atom selection string for atoms to include in analysis
+- `gevec`: Generalized eigenvectors 
+- `mean_coords`: Mean coordinates
+- `first_vec`: First eigenvector to include (0-based)
+- `last_vec`: Last eigenvector to include (0-based), None means all
+- `batch_size`: Number of frames to process at once
+- `n_jobs`: Number of parallel jobs to run (None uses all available cores)
+
+Returns:
+- Projections array, shape (n_frames, n_vecs)
+
+##### `compute_interaction_map(universe, selection, gevec, kl, first_vec=0, last_vec=None, n_jobs=None)`
+Compute per-residue contribution to conformational changes.
+
+Parameters:
+- `universe`: MDAnalysis Universe
+- `selection`: Atom selection string
+- `gevec`: Generalized eigenvectors
+- `kl`: KL divergences
+- `first_vec`: First eigenvector to include (0-based)
+- `last_vec`: Last eigenvector to include (0-based), None means all
+- `n_jobs`: Number of parallel jobs to run (None uses all available cores)
+
+Returns:
+- Residue interaction matrix and per-atom contributions
+
+##### `save_pdb_with_bfactors(universe, selection, bfactors, filename)`
+Save PDB with B-factors set to given values.
+
+Parameters:
+- `universe`: MDAnalysis Universe
+- `selection`: Atom selection string
+- `bfactors`: B-factor values to assign
+- `filename`: Output PDB filename
+
+##### `plot_kl_divergence(kl, kl_m, acc_kl, filename=None)`
+Plot KL divergence components.
+
+Parameters:
+- `kl`: Total KL divergence for each component
+- `kl_m`: Mean-shift contribution to KL
+- `acc_kl`: Accumulated KL (percentage)
+- `filename`: Output filename (optional)
+
+##### `plot_projections(proj_a, proj_b, first_vec, filename=None)`
+Plot projections of trajectories onto eigenvectors.
+
+Parameters:
+- `proj_a`: Projections of state A
+- `proj_b`: Projections of state B
+- `first_vec`: First eigenvector index (for labeling)
+- `filename`: Output filename (optional)
+
+## Performance Considerations
+
+### System Size Recommendations
+
+- **Small systems** (<500 atoms):
+  - Default settings are usually sufficient
+  - Single precision (`-fp32`) may provide some speedup with minimal accuracy loss
+
+- **Medium systems** (500-5000 atoms):
+  - Enable parallelization (`-n_jobs`)
+  - Consider using batch processing (`-batch 1000`)
+  - Single precision (`-fp32`) recommended for exploratory analysis
+
+- **Large systems** (>5000 atoms):
+  - Use batched processing with appropriate batch size (`-batch` option)
+  - Memory-efficient mode (`-mem`) recommended
+  - Limit number of eigenvectors analyzed (`-first` and `-last`)
+  - Consider preprocessing trajectories to reduce system size when possible
+
+### Memory Usage
+
+The memory usage of RPCA-Python scales approximately as:
+
+- O(N_atoms² × N_dim) for covariance matrices
+- O(N_frames × N_atoms × 3) for trajectory data
+- O(N_atoms² × N_eigs) for eigenvectors
+
+For large systems, consider:
+- Reducing batch size (`-batch`)
+- Using memory-efficient mode (`-mem`)
+- Selecting only a subset of atoms for analysis (e.g., backbone or Cα atoms)
+
+### Parallel Processing
+
+The code automatically detects the number of available CPU cores and uses them for parallel processing. You can manually control this with the `-n_jobs` parameter.
+
+For optimal performance:
+- On personal computers: Use `-n_jobs` equal to the number of physical cores
+- On computing clusters: Set `-n_jobs` based on your job allocation
+- For memory-constrained systems: Reduce `-n_jobs` to limit memory usage
+
+## Algorithm Details
+
+RPCA-Python implements the Relative Principal Components Analysis algorithm described by Ahmad et al. The process involves:
+
+1. **Generalized Procrustes Analysis (GPA)**: Aligning conformations to remove rigid-body motions and find average structures for each state.
+
+2. **Covariance Calculation**: Computing covariance matrices for each state using the aligned coordinates.
+
+3. **Simultaneous Diagonalization**: Finding a transformation that diagonalizes both covariance matrices, revealing the directions of maximal variance difference between states.
+
+4. **KL Divergence Analysis**: Calculating the Kullback-Leibler divergence to quantify the information-theoretic difference between the states along each eigenvector.
+
+5. **Projection**: Projecting trajectories onto the generalized eigenvectors to visualize conformational changes.
+
+6. **Interaction Map**: Computing residue contributions to conformational changes to identify hotspots.
+
+## Output Files
+
+RPCA-Python generates several output files:
+
+- **Generalized eigenpairs file** (`.npy`): Contains the generalized eigenvalues, eigenvectors, KL divergences, and related data.
+- **KL divergence plot** (`.png`): Visualization of KL divergences and their accumulation.
+- **Projections files** (`.npy`): Trajectory projections onto generalized eigenvectors.
+- **Residue interaction map** (`.npy`): Matrix of residue-residue interactions contributing to conformational changes.
+- **B-factor PDB** (`.pdb`): Structure with B-factors set to residue contributions for visualization.
+
+## Examples
+
+### Basic Analysis
+
+```python
+from rpca import RPCAAnalysis
+
+# Initialize
+rpca = RPCAAnalysis()
+
+# Read trajectories
+u_a = rpca.read_trajectory("protein_unbound.xtc", "protein.pdb")
+u_b = rpca.read_trajectory("protein_bound.xtc", "protein.pdb")
+
+# Perform analysis with default settings
+avg_a = rpca.perform_gpa(u_a, selection="protein and name CA")
+avg_b = rpca.perform_gpa(u_b, selection="protein and name CA")
+
+cov_a, mean_a = rpca.compute_covariance_matrix(u_a, selection="protein and name CA", average_coords=avg_a)
+cov_b, mean_b = rpca.compute_covariance_matrix(u_b, selection="protein and name CA", average_coords=avg_b)
+
+results = rpca.simultaneous_diagonalization(cov_a, cov_b, mean_a, mean_b)
+
+# Save and visualize results
+rpca.plot_kl_divergence(results['kl'], results['kl_m'], results['acc_kl'], "kl_div.png")
+```
+
+### Advanced Analysis with Performance Optimization
+
+```python
+from rpca import RPCAAnalysis
+import multiprocessing
+
+# Get number of CPU cores
+n_cores = multiprocessing.cpu_count()
+
+# Initialize
+rpca = RPCAAnalysis()
+
+# Read trajectories
+u_a = rpca.read_trajectory("large_system_unbound.xtc", "large_system.pdb", 
+                         start_time=1000, end_time=10000)
+u_b = rpca.read_trajectory("large_system_bound.xtc", "large_system.pdb", 
+                         start_time=1000, end_time=10000)
+
+# Perform optimized analysis
+selection = "protein and name CA and (resid 1-100 or resid 150-200)"
+
+avg_a = rpca.perform_gpa(u_a, selection=selection, n_jobs=n_cores)
+avg_b = rpca.perform_gpa(u_b, selection=selection, n_jobs=n_cores)
+
+cov_a, mean_a = rpca.compute_covariance_matrix(u_a, selection=selection, 
+                                            average_coords=avg_a, n_jobs=n_cores)
+cov_b, mean_b = rpca.compute_covariance_matrix(u_b, selection=selection, 
+                                            average_coords=avg_b, n_jobs=n_cores)
+
+results = rpca.simultaneous_diagonalization(cov_a, cov_b, mean_a, mean_b)
+
+# Process only first 10 eigenvectors for efficiency
+proj_a = rpca.project_trajectory(u_a, selection, results['gevec'], mean_b, 
+                              first_vec=0, last_vec=9, batch_size=500, n_jobs=n_cores)
+proj_b = rpca.project_trajectory(u_b, selection, results['gevec'], mean_b, 
+                              first_vec=0, last_vec=9, batch_size=500, n_jobs=n_cores)
+
+# Analyze interaction map
+int_mat, contrib = rpca.compute_interaction_map(u_b, selection, results['gevec'], 
+                                             results['kl'], first_vec=0, last_vec=9, 
+                                             n_jobs=n_cores)
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Problem**: Out of memory error
+**Solution**: 
+- Reduce batch size (`-batch`)
+- Use memory-efficient mode (`-mem`)
+- Reduce number of parallel jobs (`-n_jobs`)
+- Select fewer atoms for analysis
+
+**Problem**: Very slow performance
+**Solution**:
+- Check that you're using a NumPy version optimized with MKL or OpenBLAS
+- Use single precision (`-fp32`) for faster computation
+- Limit analysis to fewer eigenvectors (`-first` and `-last`)
+- Process only a subset of the trajectory (`-bt` and `-et`)
+
+**Problem**: Convergence issues in GPA
+**Solution**:
+- Increase maximum iterations or adjust convergence criterion
+- Ensure structures are properly aligned initially
+- Try using a smaller subset of atoms for the GPA fitting
+
+**Problem**: Poor separation in projections
+**Solution**:
+- Try different atom selections focusing on relevant regions
+- Check if your trajectories sample relevant conformational changes
+- Examine more eigenvectors (first few may not capture the change of interest)
+
+## References
+
+1. Ahmad, M., Helms, V., Kalinina, O. V. & Lengauer, T. Relative Principal Components Analysis: Application to Analyzing Biomolecular Conformational Changes. J. Chem. Theory Comput. 15, 2166–2178 (2019).
+
+2. Ahmad, M., Helms, V., Kalinina, O. V. & Lengauer, T. Elucidating the energetic contributions to the binding free energy. J. Chem. Phys. 146, 014105 (2017).
+
+3. Ahmad, M., Helms, V., Kalinina, O. V. & Lengauer, T. The Role of Conformational Changes in Molecular Recognition. J. Phys. Chem. B 120, 2138–2144 (2016).
+
+4. Ahmad, M., Helms, V., Lengauer, T. & Kalinina, O. V. How Molecular Conformational Changes Affect Changes in Free Energy. J. Chem. Theory Comput. 11, 2945–2957 (2015).
