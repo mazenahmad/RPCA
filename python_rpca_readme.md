@@ -17,18 +17,11 @@ A high-performance Python implementation of Relative Principal Components Analys
 
 ## Installation
 
-### Using pip
-
-```bash
-pip install rpca-python
-```
-
 ### From source
 
 ```bash
 git clone https://github.com/username/rpca-python.git
-cd rpca-python
-pip install -e .
+
 ```
 
 ## Dependencies
