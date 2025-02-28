@@ -34,7 +34,7 @@ pip install numpy scipy MDAnalysis matplotlib
 3. Download the RPCA Python implementation:
 
 ```bash
-git clone https://github.com/your_username/rpca-python.git  # Replace with actual repository
+git clone https://github.com/mazenahmad/RPCA.git  
 ```
 
 ## Usage
