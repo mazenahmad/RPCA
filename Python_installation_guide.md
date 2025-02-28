@@ -35,7 +35,6 @@ pip install numpy scipy MDAnalysis matplotlib
 
 ```bash
 git clone https://github.com/your_username/rpca-python.git  # Replace with actual repository
-cd rpca-python
 ```
 
 ## Usage
