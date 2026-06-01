@@ -1,0 +1,11 @@
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# RPCA analysis outputs
+*.npy
+contributions.pdb
+*.png
+!figs/*.png
