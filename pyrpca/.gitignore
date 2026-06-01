@@ -1,0 +1,9 @@
+build/
+*.so
+*.o
+# Cython-generated C
+src/rpca/_sdiag.c
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
