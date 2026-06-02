@@ -13,15 +13,46 @@ import numpy as np
 import os
 import argparse
 import MDAnalysis as mda
-from MDAnalysis.analysis import align
 from MDAnalysis.analysis.base import AnalysisBase
 from scipy import linalg
 import matplotlib.pyplot as plt
-from scipy.spatial.distance import cdist
 import time
-import multiprocessing
-from numba import jit, prange, float64, int64
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from numba import njit, prange
+
+
+@njit(parallel=True)
+def _accumulate_rotated_coords(mobile_coords_array, reference_coords):
+    """Accumulate optimally-rotated coordinates for GPA (Numba-accelerated).
+
+    Each frame is centered and superposed onto the centered reference via the
+    Kabsch/SVD rotation, then averaged. Numba handles the per-frame parallelism,
+    so callers do not need their own process pool.
+    """
+    n_frames = mobile_coords_array.shape[0]
+    n_atoms = reference_coords.shape[0]
+    avg_coords = np.zeros((n_atoms, 3))
+
+    # Reference centering is constant across frames - compute it once.
+    ref_mean = np.sum(reference_coords, axis=0) / n_atoms
+    ref_centered = reference_coords - ref_mean
+
+    for i in prange(n_frames):
+        mobile_coords = mobile_coords_array[i]
+        mobile_mean = np.sum(mobile_coords, axis=0) / n_atoms
+        mobile_centered = mobile_coords - mobile_mean
+
+        # Optimal rotation via SVD of the correlation matrix.
+        correlation_matrix = np.dot(mobile_centered.T, ref_centered)
+        u, s, vh = np.linalg.svd(correlation_matrix)
+
+        # Guard against reflections (improper rotations).
+        if np.sign(np.linalg.det(np.dot(vh.T, u.T))) < 0:
+            vh[-1] = -vh[-1]
+        rotation = np.dot(u, vh)
+
+        avg_coords += np.dot(mobile_centered, rotation)
+
+    return avg_coords / n_frames
 
 
 class RPCAAnalysis:
@@ -52,23 +83,13 @@ class RPCAAnalysis:
                 
             # Set trajectory start/end if specified
             if start_time > 0 or end_time > 0:
-                # Find frames corresponding to time range
-                times = universe.trajectory.time
-                start_frame = 0
-                end_frame = len(universe.trajectory) - 1
-                
-                if start_time > 0:
-                    for i, t in enumerate(times):
-                        if t >= start_time:
-                            start_frame = i
-                            break
-                            
-                if end_time > 0:
-                    for i, t in enumerate(times):
-                        if t > end_time:
-                            end_frame = i - 1
-                            break
-                
+                # Materialize per-frame times (trajectory.time is only the current frame),
+                # then locate the range with a single binary search per bound.
+                times = np.array([ts.time for ts in universe.trajectory])
+
+                start_frame = int(np.searchsorted(times, start_time, side='left')) if start_time > 0 else 0
+                end_frame = int(np.searchsorted(times, end_time, side='right')) - 1 if end_time > 0 else len(times) - 1
+
                 print(f"Using trajectory frames from {start_frame} to {end_frame}")
                 universe.trajectory[start_frame:end_frame]
             
@@ -78,45 +99,7 @@ class RPCAAnalysis:
             print(f"Error reading trajectory: {e}")
             return None
     
-    @jit(nopython=True, parallel=True)
-    def _accumulate_coords(self, mobile_coords_array, reference_coords, n_frames, n_atoms):
-        """Numba-accelerated function to accumulate coordinates for GPA"""
-        avg_coords = np.zeros((n_atoms, 3), dtype=np.float64)
-        
-        for i in prange(n_frames):
-            mobile_coords = mobile_coords_array[i]
-            
-            # Center coordinates
-            mobile_mean = np.mean(mobile_coords, axis=0)
-            ref_mean = np.mean(reference_coords, axis=0)
-            
-            mobile_centered = mobile_coords - mobile_mean
-            ref_centered = reference_coords - ref_mean
-            
-            # Calculate correlation matrix
-            correlation_matrix = np.dot(mobile_centered.T, ref_centered)
-            
-            # SVD
-            u, s, vh = np.linalg.svd(correlation_matrix)
-            
-            # Ensure proper rotation (not reflection)
-            d = np.sign(np.linalg.det(np.dot(vh.T, u.T)))
-            
-            # Construct rotation matrix
-            if d < 0:
-                vh[-1] = -vh[-1]  # Flip last row of vh
-            
-            rotation = np.dot(u, vh)
-            
-            # Apply rotation
-            rotated_coords = np.dot(mobile_centered, rotation)
-            
-            # Accumulate for average
-            avg_coords += rotated_coords
-            
-        return avg_coords / n_frames
-    
-    def perform_gpa(self, universe, selection='protein', max_iterations=10, 
+    def perform_gpa(self, universe, selection='protein', max_iterations=10,
                     convergence=0.00001, ref_frame=0, n_jobs=None):
         """Perform Generalized Procrustes Analysis to find average structure
         
@@ -132,117 +115,48 @@ class RPCAAnalysis:
             Average coordinates after GPA
         """
         print("Performing Generalized Procrustes Analysis (GPA)...")
-        
-        if n_jobs is None:
-            n_jobs = multiprocessing.cpu_count()
-        
+
         # Select atoms for analysis
         atoms = universe.select_atoms(selection)
         n_atoms = len(atoms)
-        
-        # Initialize with the first frame as reference
+
+        # Initialize with the chosen frame as reference
         universe.trajectory[ref_frame]
-        reference_coords = atoms.positions.copy()
-        
-        # Pre-load all coordinates into memory for faster processing
-        # This trades memory for speed
+        reference_coords = atoms.positions.astype(np.float64)
+
+        # Pre-load all coordinates into a preallocated array (trades memory for speed)
         print("Pre-loading trajectory coordinates...")
-        coords_array = []
-        for ts in universe.trajectory:
-            coords_array.append(atoms.positions.copy())
-        
-        coords_array = np.array(coords_array)
-        n_frames = len(coords_array)
+        n_frames = len(universe.trajectory)
+        coords_array = np.empty((n_frames, n_atoms, 3), dtype=np.float64)
+        for i, ts in enumerate(universe.trajectory):
+            coords_array[i] = atoms.positions
         print(f"Loaded {n_frames} frames")
-        
-        # Iterative GPA using optimized parallel processing
+
+        # Iterative GPA - per-frame parallelism is handled inside the numba kernel.
+        avg_coords = reference_coords
         for iteration in range(max_iterations):
             print(f"GPA Iteration {iteration + 1}/{max_iterations}")
-            
-            # Process frames in parallel chunks
-            chunk_size = max(1, n_frames // n_jobs)
-            chunks = [coords_array[i:i+chunk_size] for i in range(0, n_frames, chunk_size)]
-            
-            avg_coords = np.zeros_like(reference_coords)
-            
-            with ProcessPoolExecutor(max_workers=n_jobs) as executor:
-                futures = []
-                for chunk in chunks:
-                    futures.append(
-                        executor.submit(
-                            self._accumulate_coords_wrapper,
-                            chunk, reference_coords, len(chunk), n_atoms
-                        )
-                    )
-                
-                # Collect results
-                chunk_results = [future.result() for future in futures]
-                
-                # Weight by chunk size and combine
-                for i, result in enumerate(chunk_results):
-                    weight = len(chunks[i]) / n_frames
-                    avg_coords += result * weight
-            
+
+            avg_coords = _accumulate_rotated_coords(coords_array, reference_coords)
+
             # Calculate RMSD between old and new reference
             rmsd = np.sqrt(np.mean(np.sum((reference_coords - avg_coords)**2, axis=1)))
             print(f"  RMSD between iterations: {rmsd:.6f}")
-            
+
             # Check convergence
             if rmsd < convergence and iteration > 0:
                 print(f"GPA converged after {iteration+1} iterations")
                 break
-                
+
             # Update reference for next iteration
             reference_coords = avg_coords.copy()
-            
+
         return avg_coords
-    
-    def _accumulate_coords_wrapper(self, coords_chunk, reference_coords, chunk_size, n_atoms):
-        """Wrapper for the numba-accelerated function to handle Python objects"""
-        # Convert to numpy arrays of the right shape and type for numba
-        coords_array_np = np.array(coords_chunk, dtype=np.float64)
-        reference_coords_np = np.array(reference_coords, dtype=np.float64)
-        
-        return self._accumulate_coords(coords_array_np, reference_coords_np, chunk_size, n_atoms)
-    
-    @staticmethod
-    @jit(nopython=True)
-    def _calculate_rotation_matrix(mobile, reference):
-        """Calculate optimal rotation matrix using SVD (Numba-accelerated)
-        
-        Args:
-            mobile: Mobile coordinates (centered)
-            reference: Reference coordinates (centered)
-            
-        Returns:
-            Rotation matrix and RMSD
-        """
-        # Compute correlation matrix
-        correlation_matrix = np.dot(mobile.T, reference)
-        
-        # Singular value decomposition
-        U, S, Vt = np.linalg.svd(correlation_matrix)
-        
-        # Ensure proper rotation (not reflection)
-        d = np.sign(np.linalg.det(np.dot(Vt.T, U.T)))
-        
-        # Construct rotation matrix
-        if d < 0:
-            S = np.diag([1, 1, d])
-            rotation = np.dot(U, np.dot(S, Vt))
-        else:
-            rotation = np.dot(U, Vt)
-        
-        # Calculate RMSD
-        rotated = np.dot(mobile, rotation)
-        rmsd = np.sqrt(np.mean(np.sum((rotated - reference)**2, axis=1)))
-        
-        return rotation, rmsd
-    
+
     class FastCovarianceAnalysis(AnalysisBase):
         """Optimized covariance calculation using MDAnalysis analysis framework"""
         def __init__(self, atomgroup, reference_coords=None, **kwargs):
-            super(FastCovarianceAnalysis, self).__init__(atomgroup.universe.trajectory, **kwargs)
+            super().__init__(atomgroup.universe.trajectory, **kwargs)
             self.atomgroup = atomgroup
             self.n_atoms = len(atomgroup)
             self.n_dims = self.n_atoms * 3
@@ -305,24 +219,18 @@ class RPCAAnalysis:
             Covariance matrix and mean coordinates
         """
         print("Computing covariance matrix...")
-        
-        # Set number of threads for BLAS operations
-        if n_jobs is None:
-            n_jobs = multiprocessing.cpu_count()
-            
-        os.environ['OMP_NUM_THREADS'] = str(n_jobs)
-        
+
         # Select atoms for analysis
         atoms = universe.select_atoms(selection)
-        
+
         # Initialize and run the optimized analysis
-        cov_analysis = self.FastCovarianceAnalysis(atoms, reference_coords=average_coords, n_jobs=n_jobs)
+        cov_analysis = self.FastCovarianceAnalysis(atoms, reference_coords=average_coords)
         cov_analysis.run()
         
         return cov_analysis.covariance_matrix, cov_analysis.mean_coords.flatten()
     
     @staticmethod
-    @jit(nopython=True)
+    @njit
     def _compute_kl_divergences(gevec, geigval, mean_diff, rank):
         """Compute KL divergences with Numba acceleration"""
         kl = np.zeros(rank, dtype=np.float64)
@@ -426,24 +334,7 @@ class RPCAAnalysis:
             'sum_kl': kl_sum,
             'sum_kl_m': np.sum(kl_m)
         }
-    
-    @staticmethod
-    @jit(nopython=True, parallel=True)
-    def _project_coordinates(coords_array, mean_coords, gevec, first_vec, n_vecs):
-        """Optimized projection of coordinates onto eigenvectors"""
-        n_frames = coords_array.shape[0]
-        projections = np.zeros((n_frames, n_vecs), dtype=np.float64)
-        
-        for i in prange(n_frames):
-            coords = coords_array[i].flatten()
-            deviation = coords - mean_coords
-            
-            for j in range(n_vecs):
-                vec_idx = first_vec + j
-                projections[i, j] = np.dot(deviation, gevec[:, vec_idx])
-                
-        return projections
-    
+
     def project_trajectory(self, universe, selection, gevec, mean_coords, first_vec=0, last_vec=None, batch_size=1000, n_jobs=None):
         """Project trajectory onto generalized eigenvectors (optimized)
         
@@ -462,18 +353,11 @@ class RPCAAnalysis:
         """
         print("Projecting trajectory onto eigenvectors...")
         start_time = time.time()
-        
-        if n_jobs is None:
-            n_jobs = multiprocessing.cpu_count()
-            
-        # Set environment variables for optimal performance
-        os.environ['OMP_NUM_THREADS'] = str(n_jobs)
-        
+
         # Select atoms for analysis
         atoms = universe.select_atoms(selection)
         n_atoms = len(atoms)
-        n_dims = n_atoms * 3
-        
+
         # Set number of eigenvectors to use
         if last_vec is None:
             last_vec = gevec.shape[1] - 1
@@ -533,43 +417,45 @@ class RPCAAnalysis:
         return residue_indices
     
     @staticmethod
-    @jit(nopython=True)
+    @njit
     def _compute_interaction_matrix(gevec_subset, kl_subset, residue_indices, n_res, n_atoms, n_vecs):
-        """Numba-accelerated calculation of interaction matrix"""
+        """Numba-accelerated calculation of interaction matrix.
+
+        The contribution between residues i and j for one eigenvector is
+        sum_{a in i} sum_{b in j} (vec[a] . vec[b]) = G_i . G_j, where G_r is the
+        sum of the per-atom vectors over residue r. Collapsing the double atom
+        sum into per-residue group vectors turns the original
+        O(n_res^2 * atoms_per_res^2) loop into O(n_res^2), with identical results.
+        """
         interaction_matrix = np.zeros((n_res, n_res), dtype=np.float64)
         atom_contrib = np.zeros(n_atoms, dtype=np.float64)
-        
+
         # Pre-reshape gevec for better memory access patterns
         gevec_reshaped = gevec_subset.reshape(n_vecs, n_atoms, 3)
-        
-        # Loop over eigenvectors first for better cache locality
+
         for k in range(n_vecs):
             vec = gevec_reshaped[k]
             weight = kl_subset[k]
-            
-            # Update per-residue contributions
+
+            # Per-residue group vectors: G_r = sum of vec over the residue's atoms.
+            group = np.zeros((n_res, 3))
             for i in range(n_res):
                 idx_i = residue_indices[i]
-                
+                for a_idx in range(len(idx_i)):
+                    group[i] += vec[idx_i[a_idx]]
+
+            for i in range(n_res):
                 for j in range(n_res):
-                    idx_j = residue_indices[j]
-                    
-                    # Compute contribution between residue i and j
-                    contrib = 0.0
-                    for a_idx in range(len(idx_i)):
-                        a = idx_i[a_idx]
-                        for b_idx in range(len(idx_j)):
-                            b = idx_j[b_idx]
-                            contrib += np.dot(vec[a], vec[b]) * weight
-                    
+                    contrib = weight * np.dot(group[i], group[j])
                     interaction_matrix[i, j] += contrib
-                    
-                    # Update per-atom contribution for diagonal elements
+
+                    # Spread the diagonal contribution evenly over the residue's atoms.
                     if i == j:
+                        idx_i = residue_indices[i]
                         contrib_per_atom = contrib / len(idx_i)
                         for a_idx in range(len(idx_i)):
                             atom_contrib[idx_i[a_idx]] += contrib_per_atom
-        
+
         return interaction_matrix, atom_contrib
     
     def compute_interaction_map(self, universe, selection, gevec, kl, first_vec=0, last_vec=None, n_jobs=None):
@@ -589,21 +475,15 @@ class RPCAAnalysis:
         """
         print("Computing interaction map...")
         start_time = time.time()
-        
-        if n_jobs is None:
-            n_jobs = multiprocessing.cpu_count()
-            
-        # Set environment variables for optimal performance
-        os.environ['OMP_NUM_THREADS'] = str(n_jobs)
-        
+
         # Select atoms for analysis
         atoms = universe.select_atoms(selection)
         n_atoms = len(atoms)
-        
+
         # Set number of eigenvectors to use
         if last_vec is None:
             last_vec = gevec.shape[1] - 1
-            
+
         n_vecs = last_vec - first_vec + 1
         gevec_subset = gevec[:, first_vec:last_vec+1].copy()
         kl_subset = kl[first_vec:last_vec+1].copy()

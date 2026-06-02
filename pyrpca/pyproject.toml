@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=64", "wheel", "Cython>=3.0", "numpy>=1.23"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rpca"
+version = "0.0.1"
+description = "Relative Principal Components Analysis backed by the original C core (no GROMACS/MDAnalysis)"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.23"]
+
+[project.optional-dependencies]
+test = ["pytest", "scipy"]
